@@ -41,6 +41,8 @@ void processInput(GLFWwindow* window);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void initSnowParticle(SnowParticle& particle);
 void initLightParticle(LightParticle& particle);
+glm::vec3 bezier2(const glm::vec3 &p0, const glm::vec3 &p1, const glm::vec3 &p2, float t);
+glm::vec3 bezier3(const glm::vec3 &p0, const glm::vec3 &p1, const glm::vec3 &p2, const glm::vec3 &p3, float t);
 
 // 窗口设置
 const unsigned int SCR_WIDTH = 800;
@@ -59,6 +61,8 @@ float lastFrame = 0.0f;
 // 光照设置
 glm::vec3 lightPos(0.0f, 0.75f, 1.65f);
 glm::vec3 cubePos(0.0f, 0.3f, 2.0f);
+glm::vec3 areaLightPos(0.0f, 0.79f, 2.0f);
+glm::vec3 areaLightColor(0.2f, 0.066f, 0.009f);
 
 // 风车填充颜色
 float windmillColor[] = {
@@ -81,6 +85,18 @@ bool snowAppear = false;     // 是否有雪花效果
 unsigned int snowParticleCount = 400; // 雪花粒子数量
 bool isLightOn = false; // 圣诞树是否亮灯
 unsigned int lightParticleCount = 100; // 光粒子数量
+bool blackboardDisplay = false; // 是否显示黑板
+bool tableDisplay = false; // 是否显示桌子
+
+// 管道材质设置
+float pipeMetallic = 0.9;
+float pipeRoughness = 0.1;
+float pipeSpecular = 0.8;
+float pipeColorR = 0.72;
+float pipeColorG = 0.58;
+float pipeColorB = 0.09;
+float pipeColorA = 1.0;
+int pipeMaterialSelect = 1;
 
 int main()
 {
@@ -137,6 +153,8 @@ int main()
     Shader terrainShader("shaders/terrain.vert.glsl", "shaders/terrain.frag.glsl", "shaders/terrain.tesc.glsl", "shaders/terrain.tese.glsl", "shaders/terrain.gs.glsl");
     Shader snowShader("shaders/snow.vs.glsl", "shaders/snow.fs.glsl");
     Shader lightPointShader("shaders/lightpoint.vs.glsl", "shaders/lightpoint.fs.glsl");
+    Shader areaLightCubeShader("shaders/arealightcube.vs.glsl", "shaders/arealightcube.fs.glsl");
+    Shader areaLightingShader("shaders/arealighting.vs.glsl", "shaders/arealighting.fs.glsl");
 
     Model christmasTreeModel("models/obj/christmas_tree/christmas_tree.obj");
     Model tableModel("models/obj/table/table.obj");
@@ -154,47 +172,47 @@ int main()
     // ------------------------------------------------------------------
     float vertices[] = {
         // 立方体顶点坐标
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f,  1.0f,
+         0.5f, -0.5f, -0.5f,  0.0f,  0.0f,  1.0f,
+         0.5f,  0.5f, -0.5f,  0.0f,  0.0f,  1.0f,
+         0.5f,  0.5f, -0.5f,  0.0f,  0.0f,  1.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f,  1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f,  1.0f,
 
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-         0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, -1.0f,
+         0.5f, -0.5f,  0.5f,  0.0f,  0.0f, -1.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  0.0f, -1.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  0.0f, -1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, -1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, -1.0f,
 
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
 
-         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-         0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-         0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+         0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+         0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+         0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+         0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+         0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+         0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
 
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+         0.5f, -0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+         0.5f, -0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+         0.5f, -0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
 
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-         0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+         0.5f,  0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+         0.5f,  0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+         0.5f,  0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
 
         // 风车顶点坐标
           0.0f,   0.0f,   0.5f,   0.0f,   0.0f,   1.0f,
@@ -475,14 +493,13 @@ int main()
         glGenVertexArrays(1, &terrainVAO);
         glGenBuffers(1, &VBO10);
         glGenBuffers(1, &terrainEBO);
+        glBindVertexArray(terrainVAO);
 
         glBindBuffer(GL_ARRAY_BUFFER, VBO10);
         glBufferData(GL_ARRAY_BUFFER, terrainVertices.size() * sizeof(float), terrainVertices.data(), GL_STATIC_DRAW);
 
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, terrainEBO);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, terrainIndices.size() * sizeof(unsigned int), terrainIndices.data(), GL_STATIC_DRAW);
-
-        glBindVertexArray(terrainVAO);
 
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)(0 * sizeof(float)));
         glEnableVertexAttribArray(0);
@@ -586,14 +603,13 @@ int main()
         glGenVertexArrays(1, &platformVAO);
         glGenBuffers(1, &VBO11);
         glGenBuffers(1, &platformEBO);
+        glBindVertexArray(platformVAO);
 
         glBindBuffer(GL_ARRAY_BUFFER, VBO11);
         glBufferData(GL_ARRAY_BUFFER, platformVertices.size() * sizeof(float), platformVertices.data(), GL_STATIC_DRAW);
 
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, platformEBO);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, platformIndices.size() * sizeof(unsigned int), platformIndices.data(), GL_STATIC_DRAW);
-
-        glBindVertexArray(platformVAO);
 
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(0 * sizeof(float)));
         glEnableVertexAttribArray(0);
@@ -727,6 +743,228 @@ int main()
         stbi_image_free(data);
     }
 
+    // 加载面光源
+    std::vector<glm::vec3> areaLightPosArray;
+    const int lightNum = 10;
+    for (int i = 0; i < lightNum; i++) {
+        for (int j = 0; j < lightNum; j++) {
+             glm::vec3 offset = glm::vec3(i, 0, j);
+             offset *= 0.30f / lightNum;
+             offset -= glm::vec3(0.15f, 0, 0.15f);
+             areaLightPosArray.push_back(areaLightPos + offset);
+        }
+    }
+
+    // 管道
+    glm::vec3 controlPoints[] = {
+        {-0.5f,  0.0f,  0.0f},
+        {-0.2f, -1.0f, -1.0f},
+        { 0.2f,  1.0f,  1.0f},
+        { 0.5f,  0.0f,  0.0f}
+    }; // 贝塞尔曲线控制点
+    std::vector<float> pipeVertices;
+    std::vector<unsigned int> pipeIndices;
+    std::vector<float> keySectionVertices[3]; // 关键截面顶点
+    const int sampleNum = 256; // 采样点数
+    const int segmentNum = 256; // 管道段数
+    std::vector<glm::vec3> keySections[3];  // 关键
+    std::vector<std::vector<glm::vec3>> sections(segmentNum);
+
+    std::vector<glm::vec3> &rectangleSection = keySections[0]; // 正方形截面
+    for (int i = 0; i < sampleNum; i++) {
+        if (i < sampleNum / 8) {
+            float y = i / float(sampleNum / 4);
+            rectangleSection.push_back(glm::vec3(-0.5f, y, 0.5f));
+        } else if (i < 3 * sampleNum / 8) {
+            float z = 0.5f - (i - sampleNum / 8) / float(sampleNum / 4);
+            rectangleSection.push_back(glm::vec3(-0.5f, 0.5f, z));
+        } else if (i < 5 * sampleNum / 8) {
+            float y = 0.5f - (i - 3 * sampleNum / 8) / float(sampleNum / 4);
+            rectangleSection.push_back(glm::vec3(-0.5f, y, -0.5f));
+        } else if (i < 7 * sampleNum / 8) {
+            float z = (i - 5 * sampleNum / 8) / float(sampleNum / 4) - 0.5f;
+            rectangleSection.push_back(glm::vec3(-0.5f, -0.5f, z));
+        } else {
+            float y = (i - 7 * sampleNum / 8) / float(sampleNum / 4) - 0.5f;
+            rectangleSection.push_back(glm::vec3(-0.5f, y, 0.5f));
+        }
+    }
+
+    std::vector<glm::vec3> &ellipseSection = keySections[1];  // 椭圆截面
+    for (int i = 0; i < sampleNum; i++) {
+        float angle = glm::radians(360.0f / sampleNum * i);
+        ellipseSection.push_back(glm::vec3(0.0f, glm::sin(angle) * 0.4f, glm::cos(angle) * 0.7f));
+    }
+
+    std::vector<glm::vec3> &circleSection = keySections[2];  // 圆形截面
+    for (int i = 0; i < sampleNum; i++) {
+        float angle = glm::radians(360.0f / sampleNum * i);
+        circleSection.push_back(glm::vec3(0.5f, glm::sin(angle) * 0.6f, glm::cos(angle) * 0.6f));
+    }
+
+    // 管道插值（二次贝塞尔插值）
+    for (int i = 0; i < sampleNum; i++) {
+        glm::vec3 controlPoints1[] = {
+            keySections[0][i],
+            glm::vec3((keySections[0][i].x + keySections[1][i].x) / 2.0f,
+                      keySections[1][i].y, keySections[1][i].z),
+            keySections[1][i]
+        };
+        glm::vec3 controlPoints2[] = {
+            keySections[1][i],
+            glm::vec3((keySections[1][i].x + keySections[2][i].x) / 2.0f,
+                      keySections[1][i].y, keySections[1][i].z),
+            keySections[2][i]
+        };
+        int j = 0;
+        for (; j < segmentNum / 2; j++) {
+            float t = j / float(segmentNum / 2);
+            sections[j].push_back(bezier2(controlPoints1[0], controlPoints1[1], controlPoints1[2], t));
+        }
+        for (; j < segmentNum; j++) {
+            float t = (j - segmentNum / 2) / float(segmentNum / 2);
+            sections[j].push_back(bezier2(controlPoints2[0], controlPoints2[1], controlPoints2[2], t));
+        }
+    }
+
+    // 塞尔曲线偏移管道
+    for (int i = 0; i < sections.size(); i++) {
+        float t = i / float(sections.size());
+        glm::vec3 offset = bezier3(controlPoints[0], controlPoints[1], controlPoints[2], controlPoints[3], t);
+        for (int j = 0; j < sampleNum; j++) {
+            sections[i][j] += offset;
+        }       
+    }
+
+    // 生成管道顶点
+    for (int i = 0; i < sections.size() - 1; i++) {
+        for (int j = 0; j < sampleNum; j++) {
+            pipeVertices.push_back(sections[i][j].x);
+            pipeVertices.push_back(sections[i][j].y);
+            pipeVertices.push_back(sections[i][j].z);
+
+            glm::vec3 normal = glm::cross(sections[i + 1][j] - sections[i][j], sections[i][(j + 1) % sampleNum] - sections[i][j]);
+            pipeVertices.push_back(normal.x);
+            pipeVertices.push_back(normal.y);
+            pipeVertices.push_back(normal.z);
+
+            pipeVertices.push_back(sections[i + 1][j].x);
+            pipeVertices.push_back(sections[i + 1][j].y);
+            pipeVertices.push_back(sections[i + 1][j].z);
+
+            pipeVertices.push_back(normal.x);
+            pipeVertices.push_back(normal.y);
+            pipeVertices.push_back(normal.z);
+        }
+    }
+
+    for (int i = 0; i < sections.size() - 1; i++) {
+        for (int j = 0; j < sampleNum; j++) {
+            int base1 = i * sampleNum * 2 + j * 2;
+            int base2 = i * sampleNum * 2 + (j + 1) * 2 % (sampleNum * 2);
+            pipeIndices.push_back(base1);
+            pipeIndices.push_back(base1 + 1);
+            pipeIndices.push_back(base2);
+            pipeIndices.push_back(base1 + 1);
+            pipeIndices.push_back(base2);
+            pipeIndices.push_back(base2 + 1);
+        }
+    }
+
+    // 生成关键截面顶点
+    for (int j = 0; j < sampleNum; j++) {
+        keySectionVertices[0].push_back(sections[0][j].x);
+        keySectionVertices[0].push_back(sections[0][j].y);
+        keySectionVertices[0].push_back(sections[0][j].z);
+    }
+    for (int j = 0; j < sampleNum; j++) {
+        keySectionVertices[1].push_back(sections[sections.size() / 2][j].x);
+        keySectionVertices[1].push_back(sections[sections.size() / 2][j].y);
+        keySectionVertices[1].push_back(sections[sections.size() / 2][j].z);
+    }
+    for (int j = 0; j < sampleNum; j++) {
+        keySectionVertices[2].push_back(sections[sections.size() - 1][j].x);
+        keySectionVertices[2].push_back(sections[sections.size() - 1][j].y);
+        keySectionVertices[2].push_back(sections[sections.size() - 1][j].z);
+    }
+
+    // 载入管道顶点信息
+    unsigned int VBO15, pipeVAO, pipeEBO;
+    {
+        glGenVertexArrays(1, &pipeVAO);
+        glGenBuffers(1, &VBO15);
+        glGenBuffers(1, &pipeEBO);
+        glBindVertexArray(pipeVAO);
+
+        glBindBuffer(GL_ARRAY_BUFFER, VBO15);
+        glBufferData(GL_ARRAY_BUFFER, pipeVertices.size() * sizeof(float), pipeVertices.data(), GL_STATIC_DRAW);
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, pipeEBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, pipeIndices.size() * sizeof(unsigned int), pipeIndices.data(), GL_STATIC_DRAW);
+    
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(0 * sizeof(float)));
+        glEnableVertexAttribArray(0);
+
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(1);
+    
+        glBindVertexArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    }
+
+    // 载入关键截面顶点信息
+    unsigned int VBO16, keySection1VAO;
+    {
+        glGenVertexArrays(1, &keySection1VAO);
+        glGenBuffers(1, &VBO16);
+
+        glBindBuffer(GL_ARRAY_BUFFER, VBO16);
+        glBufferData(GL_ARRAY_BUFFER, keySectionVertices[0].size() * sizeof(float), keySectionVertices[0].data(), GL_STATIC_DRAW);
+
+        glBindVertexArray(keySection1VAO);
+
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)(0 * sizeof(float)));
+        glEnableVertexAttribArray(0);
+
+        glBindVertexArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+
+    unsigned int VBO17, keySection2VAO;
+    {
+        glGenVertexArrays(1, &keySection2VAO);
+        glGenBuffers(1, &VBO17);
+
+        glBindBuffer(GL_ARRAY_BUFFER, VBO17);
+        glBufferData(GL_ARRAY_BUFFER, keySectionVertices[1].size() * sizeof(float), keySectionVertices[1].data(), GL_STATIC_DRAW);
+
+        glBindVertexArray(keySection2VAO);
+
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)(0 * sizeof(float)));
+        glEnableVertexAttribArray(0);
+
+        glBindVertexArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+
+    unsigned int VBO18, keySection3VAO;
+    {
+        glGenVertexArrays(1, &keySection3VAO);
+        glGenBuffers(1, &VBO18);
+
+        glBindBuffer(GL_ARRAY_BUFFER, VBO18);
+        glBufferData(GL_ARRAY_BUFFER, keySectionVertices[2].size() * sizeof(float), keySectionVertices[2].data(), GL_STATIC_DRAW);
+
+        glBindVertexArray(keySection3VAO);
+
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)(0 * sizeof(float)));
+        glEnableVertexAttribArray(0);
+
+        glBindVertexArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+
 
     // 初始化随机数种子
     srand(static_cast<unsigned int>(glfwGetTime() * 1000));
@@ -806,22 +1044,27 @@ int main()
         glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 model = glm::mat4(1.0f);
 
+        areaLightingShader.use();
         //绘制天花板
         {
             //设置光照参数
-            lightingShader.setVec3("objectColor", 0.5, 0.5f, 0.5f);
-            lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
-            lightingShader.setVec3("lightPos", lightPos);
-            lightingShader.setVec3("viewPos", camera.Position);
+            areaLightingShader.setVec3("viewPos", camera.Position);
+            areaLightingShader.setVec3Array("lightPos", areaLightPosArray);
+            areaLightingShader.setInt("lightNum", areaLightPosArray.size());
+            areaLightingShader.setVec3("lightColor", areaLightColor);
+            areaLightingShader.setVec4("albedo", 0.6f, 0.6f, 0.6f, 1.0f);
+            areaLightingShader.setFloat("metallic", 0.8f);
+            areaLightingShader.setFloat("roughness", 0.2f);
+            areaLightingShader.setFloat("specular", 1.0f);
 
             // view/projection 变换
-            lightingShader.setMat4("projection", projection);
-            lightingShader.setMat4("view", view);
+            areaLightingShader.setMat4("projection", projection);
+            areaLightingShader.setMat4("view", view);
 
             // 世界坐标变换
             model = glm::translate(model, cubePos);
             model = glm::scale(model, glm::vec3(1.0f));
-            lightingShader.setMat4("model", model);
+            areaLightingShader.setMat4("model", model);
 
             // 渲染
             glBindVertexArray(CeilingVAO);
@@ -831,20 +1074,24 @@ int main()
         // 绘制地板
         {
             //设置光照参数
-            lightingShader.setVec3("objectColor", 0.5f, 0.5f, 0.5f);
-            lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
-            lightingShader.setVec3("lightPos", lightPos);
-            lightingShader.setVec3("viewPos", camera.Position);
+            areaLightingShader.setVec3("viewPos", camera.Position);
+            areaLightingShader.setVec3Array("lightPos", areaLightPosArray);
+            areaLightingShader.setInt("lightNum", areaLightPosArray.size());
+            areaLightingShader.setVec3("lightColor", areaLightColor);
+            areaLightingShader.setVec4("albedo", 0.1f, 0.1f, 0.1f, 1.0f);
+            areaLightingShader.setFloat("metallic", 0.8f);
+            areaLightingShader.setFloat("roughness", 0.1f);
+            areaLightingShader.setFloat("specular", 1.0f);
 
             // view/projection 变换
-            lightingShader.setMat4("projection", projection);
-            lightingShader.setMat4("view", view);
+            areaLightingShader.setMat4("projection", projection);
+            areaLightingShader.setMat4("view", view);
 
             // 世界坐标变换
             model = glm::mat4(1.0f);
             model = glm::translate(model, cubePos);
             model = glm::scale(model, glm::vec3(1.0f));
-            lightingShader.setMat4("model", model);
+            areaLightingShader.setMat4("model", model);
 
             // 渲染
             glBindVertexArray(FloorVAO);
@@ -854,20 +1101,24 @@ int main()
         // 绘制左墙
         {
             //设置光照参数
-            lightingShader.setVec3("objectColor", 1.0f, 0.0f, 0.31f);
-            lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
-            lightingShader.setVec3("lightPos", lightPos);
-            lightingShader.setVec3("viewPos", camera.Position);
+            areaLightingShader.setVec3("viewPos", camera.Position);
+            areaLightingShader.setVec3Array("lightPos", areaLightPosArray);
+            areaLightingShader.setInt("lightNum", areaLightPosArray.size());
+            areaLightingShader.setVec3("lightColor", areaLightColor);
+            areaLightingShader.setVec4("albedo", 0.45f, 0.45f, 0.45f, 1.0f);
+            areaLightingShader.setFloat("metallic", 0.8f);
+            areaLightingShader.setFloat("roughness", 0.2f);
+            areaLightingShader.setFloat("specular", 1.0f);
 
             // view/projection 变换
-            lightingShader.setMat4("projection", projection);
-            lightingShader.setMat4("view", view);
+            areaLightingShader.setMat4("projection", projection);
+            areaLightingShader.setMat4("view", view);
 
             // 世界坐标变换
             model = glm::mat4(1.0f);
             model = glm::translate(model, cubePos);
             model = glm::scale(model, glm::vec3(1.0f));
-            lightingShader.setMat4("model", model);
+            areaLightingShader.setMat4("model", model);
 
             // 渲染
             glBindVertexArray(LWallVAO);
@@ -877,20 +1128,24 @@ int main()
         // 绘制右墙
         {
             //设置光照参数
-            lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
-            lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
-            lightingShader.setVec3("lightPos", lightPos);
-            lightingShader.setVec3("viewPos", camera.Position);
+            areaLightingShader.setVec3("viewPos", camera.Position);
+            areaLightingShader.setVec3Array("lightPos", areaLightPosArray);
+            areaLightingShader.setInt("lightNum", areaLightPosArray.size());
+            areaLightingShader.setVec3("lightColor", areaLightColor);
+            areaLightingShader.setVec4("albedo", 0.45f, 0.45f, 0.45f, 1.0f);
+            areaLightingShader.setFloat("metallic", 0.8f);
+            areaLightingShader.setFloat("roughness", 0.2f);
+            areaLightingShader.setFloat("specular", 1.0f);
 
             // view/projection 变换
-            lightingShader.setMat4("projection", projection);
-            lightingShader.setMat4("view", view);
+            areaLightingShader.setMat4("projection", projection);
+            areaLightingShader.setMat4("view", view);
 
             // 世界坐标变换
             model = glm::mat4(1.0f);
             model = glm::translate(model, cubePos);
             model = glm::scale(model, glm::vec3(1.0f));
-            lightingShader.setMat4("model", model);
+            areaLightingShader.setMat4("model", model);
 
             // 渲染
             glBindVertexArray(RWallVAO);
@@ -900,26 +1155,32 @@ int main()
         // 绘制前墙
         {
             //设置光照参数
-            lightingShader.setVec3("objectColor", 1.0f, 1.0f, 1.0f);
-            lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
-            lightingShader.setVec3("lightPos", lightPos);
-            lightingShader.setVec3("viewPos", camera.Position);
+            areaLightingShader.setVec3("viewPos", camera.Position);
+            areaLightingShader.setVec3Array("lightPos", areaLightPosArray);
+            areaLightingShader.setInt("lightNum", areaLightPosArray.size());
+            areaLightingShader.setVec3("lightColor", areaLightColor);
+            areaLightingShader.setVec4("albedo", 0.35f, 0.35f, 0.35f, 1.0f);
+            areaLightingShader.setFloat("metallic", 0.8f);
+            areaLightingShader.setFloat("roughness", 0.2f);
+            areaLightingShader.setFloat("specular", 1.0f);
 
             // view/projection 变换
-            lightingShader.setMat4("projection", projection);
-            lightingShader.setMat4("view", view);
+            areaLightingShader.setMat4("projection", projection);
+            areaLightingShader.setMat4("view", view);
 
             // 世界坐标变换
             model = glm::mat4(1.0f);
             model = glm::translate(model, cubePos);
             model = glm::scale(model, glm::vec3(1.0f));
-            lightingShader.setMat4("model", model);
+            areaLightingShader.setMat4("model", model);
 
             // 渲染
             glBindVertexArray(FWallVAO);
             glDrawArrays(GL_TRIANGLES, 0, 6);
         }
-
+        
+        // 绘制黑板
+        if (blackboardDisplay) {
         // 绘制黑板正面边框部分
         {
             lightingShader.setVec3("objectColor", 0.75f, 0.5f, 0.3f);
@@ -1394,9 +1655,12 @@ int main()
             glBindVertexArray(lightCubeVAO);
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
+        }
 
-        christmasTreeShader.use();
+        // 绘制桌子和圣诞树
+        if (tableDisplay) {
         // 绘制桌子
+        christmasTreeShader.use();
         {
             christmasTreeShader.setVec3("lightAmbient", 0.5f * glm::vec3(1.0f, 1.0f, 1.0f));
             christmasTreeShader.setVec3("lightDiffuse", 0.2f * glm::vec3(1.0f, 1.0f, 1.0f));
@@ -1436,8 +1700,8 @@ int main()
             christmasTreeModel.Draw(christmasTreeShader);
         }
 
-        terrainShader.use();
         // 绘制地形
+        terrainShader.use();
         {
             terrainShader.setInt("inner", inner);
             terrainShader.setInt("outer", outer);
@@ -1528,7 +1792,100 @@ int main()
             glBindVertexArray(lightPointVAO);
             glDrawArrays(GL_POINTS, 0, lightParticleCount);
         }
+        }
 
+        // 绘制面光源
+        areaLightCubeShader.use();
+        {
+            areaLightCubeShader.setMat4("projection", projection);
+            areaLightCubeShader.setMat4("view", view);
+            areaLightCubeShader.setVec3("lightColor", areaLightColor);
+            areaLightCubeShader.setInt("lightNum", lightNum);
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, areaLightPos + glm::vec3(0.0f, -0.0002f, 0.0f));
+            model = glm::scale(model, glm::vec3(0.32f, 0.02f, 0.32f)); // a smaller cube
+            lightCubeShader.setMat4("model", model);
+
+            glBindVertexArray(FloorVAO);
+            glDrawArrays(GL_TRIANGLES, 0, 6); 
+        }
+
+        // 面光源厚度面
+        areaLightingShader.use();
+        {
+            //设置光照参数
+            areaLightingShader.setVec3("viewPos", camera.Position);
+            areaLightingShader.setVec3Array("lightPos", areaLightPosArray);
+            areaLightingShader.setInt("lightNum", areaLightPosArray.size());
+            areaLightingShader.setVec3("lightColor", areaLightColor);
+            areaLightingShader.setVec4("albedo", 1.0f, 1.0f, 1.0f, 1.0f);
+            areaLightingShader.setFloat("metallic", 0.0f);
+            areaLightingShader.setFloat("roughness", 1.0f);
+            areaLightingShader.setFloat("specular", 1.0f);
+
+            // view/projection 变换
+            areaLightingShader.setMat4("projection", projection);
+            areaLightingShader.setMat4("view", view);
+
+            // 世界坐标变换
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, areaLightPos + glm::vec3(0.0f, -0.00001f, 0.0f));
+            model = glm::scale(model, glm::vec3(0.32f, 0.02f, 0.32f)); // a smaller cube
+            areaLightingShader.setMat4("model", model);
+
+            // 渲染
+            glBindVertexArray(lightCubeVAO);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
+
+        // 绘制管道
+        areaLightingShader.use();
+        {
+            areaLightingShader.setVec3("viewPos", camera.Position);
+            areaLightingShader.setVec3Array("lightPos", areaLightPosArray);
+            areaLightingShader.setInt("lightNum", areaLightPosArray.size());
+            areaLightingShader.setVec3("lightColor", areaLightColor);
+            areaLightingShader.setVec4("albedo", pipeColorR, pipeColorG, pipeColorB, pipeColorA);
+            areaLightingShader.setFloat("metallic", pipeMetallic);
+            areaLightingShader.setFloat("roughness", pipeRoughness);
+            areaLightingShader.setFloat("specular", pipeSpecular);
+
+            areaLightingShader.setMat4("projection", projection);
+            areaLightingShader.setMat4("view", view);
+
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, cubePos);
+            model = glm::scale(model, glm::vec3(0.25f, 0.12f, 0.12f));
+            areaLightingShader.setMat4("model", model);
+
+            glBindVertexArray(pipeVAO);
+            glDrawElements(GL_TRIANGLES, pipeIndices.size(), GL_UNSIGNED_INT, 0);
+        }
+
+        // 绘制管道关键截面
+        areaLightCubeShader.use();
+        {
+            areaLightCubeShader.setVec3("lightColor", 0.0f, 1.0f, 0.04f);
+            areaLightCubeShader.setInt("lightNum", 1);
+            areaLightCubeShader.setMat4("projection", projection);
+            areaLightCubeShader.setMat4("view", view);
+
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, cubePos);
+            model = glm::scale(model, glm::vec3(0.25f, 0.12f, 0.12f));
+            areaLightCubeShader.setMat4("model", model);
+
+            glLineWidth(2.0f);
+            
+            glBindVertexArray(keySection1VAO);
+            glDrawArrays(GL_LINE_LOOP, 0, sampleNum);
+
+            glBindVertexArray(keySection2VAO);
+            glDrawArrays(GL_LINE_LOOP, 0, sampleNum);
+
+            glBindVertexArray(keySection3VAO);
+            glDrawArrays(GL_LINE_LOOP, 0, sampleNum);
+        }
 
         // glfw：交换缓冲区和轮询 IO 事件（按下/释放键、移动鼠标等）
         // -------------------------------------------------------------------------------
@@ -1588,6 +1945,111 @@ void processInput(GLFWwindow* window)
         windmillAngle += 2.0f * windmillSpeed * deltaTime;
     if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
         windmillAngle -= 2.0f * windmillSpeed * deltaTime;
+
+    if (glfwGetKey(window, GLFW_KEY_LEFT_BRACKET)) {
+        if (pipeMaterialSelect == 1) {
+            pipeMetallic -= 0.2f * deltaTime;
+            if (pipeMetallic < 0.0f)
+                pipeMetallic = 0.0f;
+        }
+        if (pipeMaterialSelect == 2) {
+            pipeRoughness -= 0.2f * deltaTime;
+            if (pipeRoughness < 0.0f)
+                pipeRoughness = 0.0f;
+        }
+        if (pipeMaterialSelect == 3) {
+            pipeSpecular -= 0.2f * deltaTime;
+            if (pipeSpecular < 0.0f)
+                pipeSpecular = 0.0f;
+        }
+        if (pipeMaterialSelect == 4) {
+            pipeColorR -= 0.4f * deltaTime;
+            if (pipeColorR < 0.0f)
+                pipeColorR = 0.0f;
+        }
+        if (pipeMaterialSelect == 5) {
+            pipeColorG -= 0.4f * deltaTime;
+            if (pipeColorG < 0.0f)
+                pipeColorG = 0.0f;
+        }
+        if (pipeMaterialSelect == 6) {
+            pipeColorB -= 0.4f * deltaTime;
+            if (pipeColorB < 0.0f)
+                pipeColorB = 0.0f;
+        }
+        if (pipeMaterialSelect == 7) {
+            pipeColorA -= 0.4f * deltaTime;
+            if (pipeColorA < 0.0f)
+                pipeColorA = 0.0f;
+        }
+        if (pipeMaterialSelect == 8) {
+            areaLightColor.r -= 0.4f * deltaTime;
+            if (areaLightColor.r < 0.0f)
+                areaLightColor.r = 0.0f;
+        }
+        if (pipeMaterialSelect == 9) {
+            areaLightColor.g -= 0.4f * deltaTime;
+            if (areaLightColor.g < 0.0f)
+                areaLightColor.g = 0.0f;
+        }
+        if (pipeMaterialSelect == 0) {
+            areaLightColor.b -= 0.4f * deltaTime;
+            if (areaLightColor.b < 0.0f)
+                areaLightColor.b = 0.0f;
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_RIGHT_BRACKET)) {
+        if (pipeMaterialSelect == 1) {
+            pipeMetallic += 0.2f * deltaTime;
+            if (pipeMetallic > 1)
+                pipeMetallic = 1;
+        }
+        if (pipeMaterialSelect == 2) {
+            pipeRoughness += 0.2f * deltaTime;
+            if (pipeRoughness > 1)
+                pipeRoughness = 1;
+        }
+        if (pipeMaterialSelect == 3) {
+            pipeSpecular += 0.2f * deltaTime;
+            if (pipeSpecular > 1.0f)
+                pipeSpecular = 1.0f;
+        }
+        if (pipeMaterialSelect == 4) {
+            pipeColorR += 0.4f * deltaTime;
+            if (pipeColorR > 1.0f)
+                pipeColorR = 1.0f;
+        }
+        if (pipeMaterialSelect == 5) {
+            pipeColorG += 0.4f * deltaTime;
+            if (pipeColorG > 1.0f)
+                pipeColorG = 1.0f;
+        }
+        if (pipeMaterialSelect == 6) {
+            pipeColorB += 0.4f * deltaTime;
+            if (pipeColorB > 1.0f)
+                pipeColorB = 1.0f;
+        }
+        if (pipeMaterialSelect == 7) {
+            pipeColorA += 0.4f * deltaTime;
+            if (pipeColorA > 1.0f)
+                pipeColorA = 1.0f;
+        }
+        if (pipeMaterialSelect == 8) {
+            areaLightColor.r += 0.4f * deltaTime;
+            if (areaLightColor.r > 1.0f)
+                areaLightColor.r = 1.0f;
+        }
+        if (pipeMaterialSelect == 9) {
+            areaLightColor.g += 0.4f * deltaTime;
+            if (areaLightColor.g > 1.0f)
+                areaLightColor.g = 1.0f;
+        }
+        if (pipeMaterialSelect == 0) {
+            areaLightColor.b += 0.4f * deltaTime;
+            if (areaLightColor.b > 1.0f)
+                areaLightColor.b = 1.0f;
+        }
+    }
 }
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -1626,6 +2088,10 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
     if (key == GLFW_KEY_L && action == GLFW_PRESS) {
         isLightOn = !isLightOn;
+    }
+
+    if (GLFW_KEY_0 <= key && key <= GLFW_KEY_9 && action == GLFW_PRESS) {
+        pipeMaterialSelect = key - GLFW_KEY_0;
     }
 }
 
@@ -1696,4 +2162,12 @@ void initLightParticle(LightParticle &particle) {
     particle.color = glm::vec3(1.0f, 1.0f, 1.0f - colorTmp);
 
     particle.flashDelTime = (rand() % 100) / 100.0f;
+}
+
+glm::vec3 bezier2(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, float t) {
+    return (1 - t) * (1 - t) * p0 + 2 * t * (1 - t) * p1 + t * t * p2;
+}
+
+glm::vec3 bezier3(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3, float t) {
+    return (1 - t) * (1 - t) * (1 - t) * p0 + 3 * t * (1 - t) * (1 - t) * p1 + 3 * t * t * (1 - t) * p2 + t * t * t * p3;
 }

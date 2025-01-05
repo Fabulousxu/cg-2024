@@ -100,5 +100,17 @@
     <None Include="shaders\lightpoint.vs.glsl">
       <Filter>资源文件</Filter>
     </None>
+    <None Include="shaders\arealightcube.fs.glsl">
+      <Filter>资源文件</Filter>
+    </None>
+    <None Include="shaders\arealightcube.vs.glsl">
+      <Filter>资源文件</Filter>
+    </None>
+    <None Include="shaders\arealighting.fs.glsl">
+      <Filter>资源文件</Filter>
+    </None>
+    <None Include="shaders\arealighting.vs.glsl">
+      <Filter>资源文件</Filter>
+    </None>
   </ItemGroup>
 </Project>

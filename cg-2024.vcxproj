@@ -159,6 +159,10 @@
     <ClCompile Include="thirdparty\src\imgui_widgets.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="shaders\arealightcube.fs.glsl" />
+    <None Include="shaders\arealightcube.vs.glsl" />
+    <None Include="shaders\arealighting.fs.glsl" />
+    <None Include="shaders\arealighting.vs.glsl" />
     <None Include="shaders\christmas_tree.fs.glsl" />
     <None Include="shaders\christmas_tree.vs.glsl" />
     <None Include="shaders\lightcube.fs.glsl" />
